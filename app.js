@@ -12,6 +12,7 @@ app.use(cors())
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const client = require('twilio')(accountSid, authToken);
+const VoiceResponse = require('twilio').twiml.VoiceResponse;
 
 app.get("/", (req, res) => {
     res.send("Welcome")
@@ -19,11 +20,12 @@ app.get("/", (req, res) => {
 
 app.get("/call", async (req, res) => {
     try {
+        const { toNumber } = req.query;
         const call = await client.calls
             .create({
                 url: "http://demo.twilio.com/docs/voice.xml",
-                to: "+8801610186906",
-                from: "+16206590638",
+                to: toNumber,
+                from: process.env.TWILIO_NUMBER,
             });
         console.log(call.sid)
         res.status(200).json({ success: true, call })
@@ -31,10 +33,12 @@ app.get("/call", async (req, res) => {
         res.status(500).json({ success: false, message: err.message })
     }
 })
-app.post("/call", (req, res) => {
+app.post("/voice", (req, res) => {
     try {
-        console.log(req.body)
-        res.status(200).json({ success: true })
+        const twiml = new VoiceResponse();
+        twiml.say({ voice: 'alice' }, 'hello sir!. i hope you are doing well.');
+        res.type('text/xml');
+        res.send(twiml.toString());
     } catch (err) {
         console.log(err.message)
     }
