@@ -2,6 +2,11 @@ const express = require('express')
 const dotenv = require('dotenv');
 const cors = require('cors')
 const urlencoded = require("body-parser").urlencoded;
+const { completeChat } = require('./services/openai')
+const axios = require("axios");
+const fs = require('fs');
+const path = require('path');
+const root = require("app-root-path")
 
 dotenv.config()
 
@@ -34,6 +39,7 @@ app.get("/calls", async (req, res) => {
         console.log(call.sid)
         res.status(200).json({ success: true, call })
     } catch (err) {
+        console.log(err)
         res.status(500).json({ success: false, message: err.message })
     }
 });
@@ -54,7 +60,7 @@ app.post("/call", (req, res) => {
         res.type('text/xml');
         res.send(twiml.toString());
     } catch (err) {
-        console.log(err.message)
+        console.log(err)
     }
 })
 // reply to the user
@@ -62,15 +68,66 @@ app.post("/voice", (req, res) => {
     try {
         const twiml = new VoiceResponse();
         const command = req.body.SpeechResult;
-
+        console.log(command);
         twiml.say(`you said  ${command}`);
+        console.log(command, "this is a command")
 
         res.type('text/xml');
         res.send(twiml.toString());
     } catch (err) {
-        console.log(err.message)
+        console.log(err)
+    }
+});
+
+app.post('/test', async (req, res, next) => {
+    try {
+        const conversation = req.query.text;
+        const voiceResponse = new VoiceResponse();
+
+        const response = await completeChat({ conversation });
+
+        var data = JSON.stringify({
+            "text": response.content,
+            "model_id": "eleven_monolingual_v1",
+            "voice_settings": {
+                "stability": 0,
+                "similarity_boost": 0
+            }
+        });
+
+        var config = {
+            method: 'post',
+            url: 'https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM',
+            headers: {
+                'accept': 'audio/mpeg',
+                'xi-api-key': '7abd022fc43dc4b3858195b4da924fa8',
+                'Content-Type': 'application/json'
+            },
+            data: data
+        };
+        const voice = await axios(config);
+        // console.log(voice.data)
+        const audioData = 'data:audio/mpeg;base64,' + Buffer.from(voice.data, 'binary').toString('base64')
+        const fileName = `audio-${Date.now()}.mp3`;
+        const filePath = path.join(`${root}/audio`, fileName);
+
+        saveAudioFromBase64(audioData, filePath);
+
+        voiceResponse.play({ url: audioData });
+        res.type('text/xml');
+        // res.status(200).json({ success: true, audio: data2 })
+        res.send(voiceResponse.toString())
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({ success: false, message: err.message })
     }
 })
+
+function saveAudioFromBase64(base64Audio, filePath) {
+    const [header, encoded] = base64Audio.split(",", 2);
+    const data = Buffer.from(encoded, "base64");
+    fs.writeFileSync(filePath, data);
+}
 
 app.listen(port, () => {
     console.log("listening on port", port)
