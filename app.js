@@ -50,7 +50,7 @@ app.post("/call", (req, res) => {
         const twiml = new VoiceResponse();
         twiml.gather({
             input: "speech",
-            timeout: 5,   //you can set any specific time
+            timeout: "auto",   //you can set any specific time
             action: "/voice",
             language: "en-GB",
             speechModel: 'phone_call',
@@ -68,90 +68,42 @@ app.post("/voice", async (req, res) => {
     try {
         const twiml = new VoiceResponse();
         const command = req.body.SpeechResult;
-        const response = await completeChat({ conversation: command });
+        // const response = await completeChat({ conversation: command });
+        // console.log(response);
+        // var data = JSON.stringify({
+        //     "text": response.content,
+        //     "model_id": "eleven_monolingual_v1",
+        //     "voice_settings": {
+        //         "stability": 0,
+        //         "similarity_boost": 0
+        //     }
+        // });
 
-        var data = JSON.stringify({
-            "text": response.content,
-            "model_id": "eleven_monolingual_v1",
-            "voice_settings": {
-                "stability": 0,
-                "similarity_boost": 0
-            }
-        });
-
-        var config = {
-            method: 'post',
-            url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.VOICE_ID}`,
-            headers: {
-                'accept': 'audio/mpeg',
-                'xi-api-key': process.env.ELEVENLABS_API_KEY,
-                'Content-Type': 'application/json'
-            },
-            data: data
-        };
-        const voice = await axios(config);
-        // console.log(voice.data)
-        const audioData = 'data:audio/mpeg;base64,' + Buffer.from(voice.data, 'binary').toString('base64')
-        const fileName = `audio-${Date.now()}.mp3`;
-        const filePath = path.join(`${root}/audio`, fileName);
-
-        saveAudioFromBase64(audioData, filePath);
-
-        twiml.play({ url: audioData });
-        res.type('text/xml');
-        // res.status(200).json({ success: true, audio: data2 })
-        res.send(twiml.toString())
-
-        res.type('text/xml');
-        res.send(twiml.toString());
-    } catch (err) {
-        console.log(err)
-    }
-});
-
-app.post('/test', async (req, res, next) => {
-    try {
-        const conversation = req.query.text;
-        const voiceResponse = new VoiceResponse();
-
-        const response = await completeChat({ conversation });
-
-        var data = JSON.stringify({
-            "text": response.content,
-            "model_id": "eleven_monolingual_v1",
-            "voice_settings": {
-                "stability": 0,
-                "similarity_boost": 0
-            }
-        });
-
-        var config = {
-            method: 'post',
-            url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.VOICE_ID}`,
-            headers: {
-                'accept': 'audio/mpeg',
-                'xi-api-key': '7abd022fc43dc4b3858195b4da924fa8',
-                'Content-Type': 'application/json'
-            },
-            data: data
-        };
-        const voice = await axios(config);
-        // console.log(voice.data)
-        const audioData = 'data:audio/mpeg;base64,' + Buffer.from(voice.data, 'binary').toString('base64')
+        // var config = {
+        //     method: 'post',
+        //     url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.VOICE_ID}`,
+        //     headers: {
+        //         'accept': 'audio/mpeg',
+        //         'xi-api-key': `${process.env.ELEVENLABS_API_KEY}`,
+        //         'Content-Type': 'application/json'
+        //     },
+        //     data: data
+        // };
+        // const voice = await axios(config);
+        // // console.log(voice.data)
+        // const audioData = 'data:audio/mpeg;base64,' + Buffer.from(voice.data, 'binary').toString('base64')
         // const fileName = `audio-${Date.now()}.mp3`;
         // const filePath = path.join(`${root}/audio`, fileName);
 
         // saveAudioFromBase64(audioData, filePath);
 
-        voiceResponse.play({ url: audioData });
+        twiml.say(`${command}`);
         res.type('text/xml');
-        // res.status(200).json({ success: true, audio: data2 })
-        res.send(voiceResponse.toString())
+        res.send(twiml.toString())
     } catch (err) {
         console.log(err)
-        res.status(500).json({ success: false, message: err.message })
     }
-})
+});
 
 function saveAudioFromBase64(base64Audio, filePath) {
     const [header, encoded] = base64Audio.split(",", 2);
