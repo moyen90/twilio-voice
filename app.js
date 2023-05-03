@@ -50,12 +50,12 @@ app.post("/call", (req, res) => {
         const twiml = new VoiceResponse();
         twiml.gather({
             input: "speech",
-            timeout: "auto",   //you can set any specific time
+            timeout: 5,   //you can set any specific time
             action: "/voice",
             language: "en-GB",
             speechModel: 'phone_call',
             hints: 'person, dream, vision'
-        }).say("Hello Sir! Please say something about yourself!");
+        }).say("Hello Sir! Please ask me something!");
 
         res.type('text/xml');
         res.send(twiml.toString());
@@ -64,13 +64,43 @@ app.post("/call", (req, res) => {
     }
 })
 // reply to the user
-app.post("/voice", (req, res) => {
+app.post("/voice", async (req, res) => {
     try {
         const twiml = new VoiceResponse();
         const command = req.body.SpeechResult;
-        console.log(command);
-        twiml.say(`you said  ${command}`);
-        console.log(command, "this is a command")
+        const response = await completeChat({ conversation: command });
+
+        var data = JSON.stringify({
+            "text": response.content,
+            "model_id": "eleven_monolingual_v1",
+            "voice_settings": {
+                "stability": 0,
+                "similarity_boost": 0
+            }
+        });
+
+        var config = {
+            method: 'post',
+            url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.VOICE_ID}`,
+            headers: {
+                'accept': 'audio/mpeg',
+                'xi-api-key': process.env.ELEVENLABS_API_KEY,
+                'Content-Type': 'application/json'
+            },
+            data: data
+        };
+        const voice = await axios(config);
+        // console.log(voice.data)
+        const audioData = 'data:audio/mpeg;base64,' + Buffer.from(voice.data, 'binary').toString('base64')
+        const fileName = `audio-${Date.now()}.mp3`;
+        const filePath = path.join(`${root}/audio`, fileName);
+
+        saveAudioFromBase64(audioData, filePath);
+
+        twiml.play({ url: audioData });
+        res.type('text/xml');
+        // res.status(200).json({ success: true, audio: data2 })
+        res.send(twiml.toString())
 
         res.type('text/xml');
         res.send(twiml.toString());
@@ -97,7 +127,7 @@ app.post('/test', async (req, res, next) => {
 
         var config = {
             method: 'post',
-            url: 'https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM',
+            url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.VOICE_ID}`,
             headers: {
                 'accept': 'audio/mpeg',
                 'xi-api-key': '7abd022fc43dc4b3858195b4da924fa8',
@@ -108,10 +138,10 @@ app.post('/test', async (req, res, next) => {
         const voice = await axios(config);
         // console.log(voice.data)
         const audioData = 'data:audio/mpeg;base64,' + Buffer.from(voice.data, 'binary').toString('base64')
-        const fileName = `audio-${Date.now()}.mp3`;
-        const filePath = path.join(`${root}/audio`, fileName);
+        // const fileName = `audio-${Date.now()}.mp3`;
+        // const filePath = path.join(`${root}/audio`, fileName);
 
-        saveAudioFromBase64(audioData, filePath);
+        // saveAudioFromBase64(audioData, filePath);
 
         voiceResponse.play({ url: audioData });
         res.type('text/xml');
