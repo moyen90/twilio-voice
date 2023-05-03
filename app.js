@@ -31,7 +31,7 @@ app.get("/calls", async (req, res) => {
         const { toNumber } = req.query;
         const call = await client.calls
             .create({
-                url: "https://blue-good-salmon.cyclic.app/call",
+                url: "https://busy-red-meerkat-gear.cyclic.app/call",
                 // its the web hook url that gather user responses.
                 to: toNumber,
                 from: process.env.TWILIO_NUMBER,
@@ -68,36 +68,38 @@ app.post("/voice", async (req, res) => {
     try {
         const twiml = new VoiceResponse();
         const command = req.body.SpeechResult;
-        // const response = await completeChat({ conversation: command });
-        // console.log(response);
-        // var data = JSON.stringify({
-        //     "text": response.content,
-        //     "model_id": "eleven_monolingual_v1",
-        //     "voice_settings": {
-        //         "stability": 0,
-        //         "similarity_boost": 0
-        //     }
-        // });
+        // console.log(command)
+        const response = await completeChat({ conversation: command });
+        console.log(response);
+        var data = JSON.stringify({
+            "text": response.content,
+            "model_id": "eleven_monolingual_v1",
+            "voice_settings": {
+                "stability": 0,
+                "similarity_boost": 0
+            }
+        });
 
-        // var config = {
-        //     method: 'post',
-        //     url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.VOICE_ID}`,
-        //     headers: {
-        //         'accept': 'audio/mpeg',
-        //         'xi-api-key': `${process.env.ELEVENLABS_API_KEY}`,
-        //         'Content-Type': 'application/json'
-        //     },
-        //     data: data
-        // };
-        // const voice = await axios(config);
-        // // console.log(voice.data)
-        // const audioData = 'data:audio/mpeg;base64,' + Buffer.from(voice.data, 'binary').toString('base64')
+        var config = {
+            method: 'post',
+            url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.VOICE_ID}`,
+            headers: {
+                'accept': 'audio/mpeg',
+                'xi-api-key': `${process.env.ELEVENLABS_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            data: data
+        };
+        const voice = await axios(config);
+        // console.log(voice.data)
+        const audioData = 'data:audio/mpeg;base64,' + Buffer.from(voice.data, 'binary').toString('base64')
         // const fileName = `audio-${Date.now()}.mp3`;
         // const filePath = path.join(`${root}/audio`, fileName);
 
         // saveAudioFromBase64(audioData, filePath);
 
-        twiml.say(`${command}`);
+
+        twiml.play("https://s3-us-west-2.amazonaws.com/s.cdpn.io/123941/Yodel_Sound_Effect.mp3");
         res.type('text/xml');
         res.send(twiml.toString())
     } catch (err) {
