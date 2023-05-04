@@ -4,9 +4,12 @@ const cors = require('cors')
 const urlencoded = require("body-parser").urlencoded;
 const { completeChat } = require('./services/openai')
 const axios = require("axios");
+const root = require("app-root-path");
 const fs = require('fs');
 const path = require('path');
-const root = require("app-root-path")
+const multer = require("multer");
+const { Storage } = require('@google-cloud/storage');
+const { format } = require('util')
 
 dotenv.config()
 
@@ -14,7 +17,11 @@ const port = process.env.PORT || 3001
 const app = express()
 app.use(express.json())
 app.use(cors())
-app.use(urlencoded({ extended: false }))
+app.use(urlencoded({ extended: false }));
+
+const storage = new Storage({ projectId: 'connekt-studio' });
+const bucket = storage.bucket('talktocelebrity')
+const upload = multer({ storage: multer.memoryStorage() })
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -23,6 +30,40 @@ const VoiceResponse = require('twilio').twiml.VoiceResponse;
 
 app.get("/", (req, res) => {
     res.send("Welcome")
+})
+
+app.post("/upload", upload.single("audio"), (req, res) => {
+    const { originalname, mimetype, buffer } = req.file;
+    const destinationPath = `audio/${Date.now()}-${originalname}`;
+
+    const filePath = path.join(`${root}/audio`, originalname);
+
+    fs.writeFileSync(filePath, buffer);
+
+    bucket.upload(filePath, {
+        destination: destinationPath,
+        metadata: {
+            contentType: mimetype,
+        },
+    })
+        .then(() => {
+            console.log(`File ${originalname} uploaded to ${destinationPath}.`);
+
+            // Get signed URL for the uploaded file
+            const file = bucket.file(destinationPath);
+            return file.publicUrl()
+        })
+        .then((downloadUrl) => {
+            console.log(`File ${downloadUrl} uploaded to ${destinationPath}`);
+            res.send({
+                message: 'File uploaded successfully!',
+                downloadUrl,
+            });
+        })
+        .catch((error) => {
+            console.error(`Failed to upload file ${originalname}. Error: ${error}`);
+            res.status(500).send("File uploaded fail!");
+        });
 })
 
 // create a voice call request
@@ -93,11 +134,12 @@ app.post("/voice", async (req, res) => {
         const voice = await axios(config);
         // console.log(voice.data)
         const audioData = 'data:audio/mpeg;base64,' + Buffer.from(voice.data, 'binary').toString('base64')
-        // const fileName = `audio-${Date.now()}.mp3`;
-        // const filePath = path.join(`${root}/audio`, fileName);
+        const fileName = `audio-${Date.now()}.mp3`;
+        const filePath = path.join(`${root}/audio`, fileName);
 
-        // saveAudioFromBase64(audioData, filePath);
+        saveAudioFromBase64(audioData, filePath);
 
+        await uploadFile(filePath, fileName)
 
         twiml.play("https://s3-us-west-2.amazonaws.com/s.cdpn.io/123941/Yodel_Sound_Effect.mp3");
         res.type('text/xml');
@@ -111,6 +153,32 @@ function saveAudioFromBase64(base64Audio, filePath) {
     const [header, encoded] = base64Audio.split(",", 2);
     const data = Buffer.from(encoded, "base64");
     fs.writeFileSync(filePath, data);
+}
+
+async function uploadFile(filePath, fileName) {
+    const destinationPath = `audio/${fileName}`;
+    bucket.upload(filePath, {
+        destination: destinationPath,
+        metadata: {
+            contentType: mimetype,
+        },
+    })
+        .then(() => {
+            // Get signed URL for the uploaded file
+            const file = bucket.file(destinationPath);
+            return file.publicUrl()
+        })
+        .then((downloadUrl) => {
+            console.log(`File ${downloadUrl} uploaded to ${destinationPath}`);
+            res.send({
+                message: 'File uploaded successfully!',
+                downloadUrl,
+            });
+        })
+        .catch((error) => {
+            console.error(`Failed to upload file ${originalname}. Error: ${error}`);
+            res.status(500).send("File uploaded fail!");
+        });
 }
 
 app.listen(port, () => {
