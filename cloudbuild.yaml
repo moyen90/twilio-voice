@@ -19,7 +19,7 @@ steps:
         "deploy",
         "talk-to-celebrity-backend",
         "--image=gcr.io/$PROJECT_ID/talk-to-celebrity-backend:$SHORT_SHA",
-        "--region=asia-south1",
+        "--region=us-central1",
         "--allow-unauthenticated",
         "--set-secrets",
         "MONGO_DB_URI=apollo-hms-db-uri:latest,FIREBASE_SERVICE_ACCOUNT=apollo-hms-service-account:latest,POSTMARK_ACCOUNT_TOKEN=apollo-hms-postmark-api-key:latest,POSTMARK_SERVER_TOKEN= apollo-postmark-server-token:latest,SMS_API_KEY=sms-api-key:latest,SMS_SENDER_ID=sms-sender-id:latest",
