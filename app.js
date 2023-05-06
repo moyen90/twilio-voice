@@ -5,11 +5,8 @@ const urlencoded = require("body-parser").urlencoded;
 const { completeChat } = require('./services/openai')
 const axios = require("axios");
 const root = require("app-root-path");
-const fs = require('fs');
-const path = require('path');
 const multer = require("multer");
 const { Storage } = require('@google-cloud/storage');
-const { format } = require('util')
 
 dotenv.config()
 
